@@ -1,9 +1,5 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}
-Главная страница
-{% endblock %}
-
-{% block body %}
-<h1>Главная страница</h1>
+{% block content %}
+    <h1>Привет, {{ username }}!</h1>
 {% endblock %}
