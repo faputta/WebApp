@@ -1,27 +1,22 @@
-from flask import Flask, render_template, redirect
+import requests
+from flask import Flask, render_template, redirect, request
 from flask_restful import reqparse, abort, Api, Resource
+from flask_sqlalchemy import SQLAlchemy
 from data import db_session
 from data.users import User
+from data.cities import City
 from forms.user import RegisterForm
 from forms.loginform import LoginForm
 from flask_login import LoginManager, login_user, login_required, logout_user
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'faputa_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blogs.db'
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-api = Api()
-
-
-class Main(Resource):
-    def get(self):
-        return {"info": "smth", "num": 17}
-
-
-api.add_resource(Main, "/api/main")
-api.init_app(app)
+db = SQLAlchemy(app)
 
 
 def main():
@@ -30,9 +25,36 @@ def main():
 
 
 @app.route("/index")
-@app.route("/")
+@app.route("/", methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    db_sess = db_session.create_session()
+    if request.method == 'POST':
+        new_city = request.form.get('city')
+
+        if new_city:
+            new_city_obj = City(name=new_city)
+
+            db_sess.add(new_city_obj)
+            db_sess.commit()
+    cities = db_sess.query(City).all()
+
+    url = 'http://api.openweathermap.org/data/2.5/weather?q={}&units=imperial&appid=271d1234d3f497eed5b1d80a07b3fcd1'
+
+    weather_data = []
+
+    for city in cities:
+        r = requests.get(url.format(city.name)).json()
+
+        weather = {
+            'city': city.name,
+            'temperature': r['main']['temp'],
+            'description': r['weather'][0]['description'],
+            'icon': r['weather'][0]['icon'],
+        }
+
+        weather_data.append(weather)
+
+    return render_template('weather.html', weather_data=weather_data)
 
 
 @app.route('/register', methods=['GET', 'POST'])
